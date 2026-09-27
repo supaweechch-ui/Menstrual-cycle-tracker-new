@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ตัวช่วยติดตามรอบเดือน</title>
+<meta name="theme-color" content="#B4416B">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="รอบเดือน">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<script>
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw.js').catch(function(){});
+    });
+  }
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FFF7F5; --card:#FFFFFF; --ink:#2B2430; --sub:#7A6F78;
+    --line:#F0E2DE; --high:#E8607A; --high-bg:#FDE9ED; --mid:#E2A33B; --mid-bg:#FBF1DE;
+    --safe:#5FA084; --safe-bg:#E7F3ED; --accent:#B4416B;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#1E1820; --card:#2A222C; --ink:#F2E9EC; --sub:#B6A7AF;
+      --line:#3B313E; --high:#F0839B; --high-bg:#432A32; --mid:#EEC06B; --mid-bg:#3E351F;
+      --safe:#7FC0A2; --safe-bg:#213A2F; --accent:#E48CAE;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#1E1820; --card:#2A222C; --ink:#F2E9EC; --sub:#B6A7AF;
+    --line:#3B313E; --high:#F0839B; --high-bg:#432A32; --mid:#EEC06B; --mid-bg:#3E351F;
+    --safe:#7FC0A2; --safe-bg:#213A2F; --accent:#E48CAE;
+  }
+  html{scroll-padding-top:env(safe-area-inset-top,0px);}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Noto Sans Thai',sans-serif;-webkit-font-smoothing:antialiased;min-height:100%;}
+  h1,h2,.num{font-family:'Kanit',sans-serif;}
+  .wrap{max-width:480px;margin:0 auto;padding:20px 16px 40px;}
+  header{padding:4px 2px 18px;}
+  header h1{font-size:19px;margin:0 0 2px;font-weight:600;color:var(--accent);}
+  header p{margin:0;font-size:13px;color:var(--sub);}
+  .hero{background:linear-gradient(155deg,var(--accent),#8C3A5C);border-radius:20px;padding:22px 20px;color:#fff;margin-bottom:16px;box-shadow:0 8px 24px -12px rgba(180,65,107,.5);}
+  .hero .row{display:flex;align-items:baseline;gap:10px;}
+  .hero .num{font-size:44px;font-weight:700;line-height:1;}
+  .hero .label{font-size:13px;opacity:.85;}
+  .hero .phase{margin-top:10px;font-size:16px;font-weight:600;}
+  .hero .badge{display:inline-block;margin-top:8px;padding:5px 12px;border-radius:999px;font-size:12.5px;font-weight:600;background:rgba(255,255,255,.18);}
+  .hero .note{margin-top:10px;font-size:12.5px;opacity:.85;line-height:1.5;}
+  section{margin-bottom:16px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;}
+  h2{font-size:15px;margin:0 0 12px;font-weight:600;}
+  .field-label{display:block;font-size:13px;color:var(--sub);margin:10px 0 4px;}
+  .field-label:first-of-type{margin-top:0;}
+  .field-input{width:100%;}
+  .hint{font-size:12.5px;color:var(--sub);margin:12px 0 0;line-height:1.5;}
+  .add-row{display:flex;gap:8px;margin-bottom:12px;}
+  input[type="date"],input[type="number"]{flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-family:inherit;font-size:14px;}
+  button{font-family:inherit;font-size:14px;font-weight:600;border:none;border-radius:10px;padding:10px 16px;cursor:pointer;background:var(--accent);color:#fff;}
+  button.ghost{background:transparent;color:var(--sub);border:1px solid var(--line);padding:6px 10px;font-weight:500;font-size:12.5px;}
+  button:active{opacity:.85;}
+  .dates-list{display:flex;flex-direction:column;gap:8px;}
+  .date-item{display:flex;align-items:center;justify-content:space-between;background:var(--bg);border-radius:10px;padding:9px 12px;font-size:13.5px;}
+  .date-item .d{font-weight:600;}
+  .date-item .len{color:var(--sub);font-size:12px;margin-left:8px;}
+  .empty{color:var(--sub);font-size:13px;text-align:center;padding:8px 0;}
+  .excel-row{display:flex;gap:8px;margin-top:14px;}
+  .excel-row button{flex:1;background:var(--bg);color:var(--ink);border:1px solid var(--line);font-weight:600;font-size:13px;}
+  .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);}
+  .settings-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;font-size:14px;border-bottom:1px solid var(--line);}
+  .settings-row:last-child{border-bottom:none;}
+  .settings-row .val{color:var(--sub);font-size:13px;}
+  .settings-row input{max-width:80px;text-align:center;flex:none;}
+  .timeline{display:flex;flex-direction:column;gap:10px;}
+  .phase-item{display:flex;gap:12px;padding:12px;border-radius:12px;background:var(--bg);border-left:4px solid var(--line);}
+  .phase-item.high{border-left-color:var(--high);}
+  .phase-item.mid{border-left-color:var(--mid);}
+  .phase-item.safe{border-left-color:var(--safe);}
+  .phase-item .pi-body{flex:1;}
+  .phase-item .pi-title{font-weight:600;font-size:14px;margin-bottom:2px;}
+  .phase-item .pi-range{font-size:12.5px;color:var(--sub);}
+  .pi-tag{align-self:flex-start;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;}
+  .pi-tag.high{background:var(--high-bg);color:var(--high);}
+  .pi-tag.mid{background:var(--mid-bg);color:var(--mid);}
+  .pi-tag.safe{background:var(--safe-bg);color:var(--safe);}
+  .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+  .stat-card{background:var(--bg);border-radius:12px;padding:12px;text-align:center;}
+  .stat-card .v{font-size:20px;font-weight:700;color:var(--accent);}
+  .stat-card .l{font-size:11.5px;color:var(--sub);margin-top:2px;}
+  .regular-badge{display:inline-block;margin-bottom:10px;padding:5px 12px;border-radius:999px;font-size:12.5px;font-weight:600;}
+  .regular-badge.safe{background:var(--safe-bg);color:var(--safe);}
+  .regular-badge.mid{background:var(--mid-bg);color:var(--mid);}
+  .chart-wrap{margin:4px 0 14px;}
+  .chart-wrap svg{width:100%;height:auto;display:block;}
+  footer{font-size:12px;color:var(--sub);line-height:1.6;padding:6px 4px 0;}
+  .help-fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));width:48px;height:48px;border-radius:50%;background:var(--accent);color:#fff;font-family:'Kanit',sans-serif;font-size:20px;font-weight:700;border:none;box-shadow:0 10px 20px -8px rgba(180,65,107,.55);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:20;padding:0;}
+  .sheet-backdrop{position:fixed;inset:0;background:rgba(20,14,18,.45);z-index:29;opacity:0;pointer-events:none;transition:opacity .18s ease;}
+  .sheet-backdrop.open{opacity:1;pointer-events:auto;}
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--card);border-radius:20px 20px 0 0;padding:18px 20px calc(22px + env(safe-area-inset-bottom,0px));max-height:78vh;overflow-y:auto;transform:translateY(100%);transition:transform .22s ease;box-shadow:0 -10px 30px -10px rgba(0,0,0,.3);}
+  .sheet.open{transform:translateY(0);}
+  .sheet-handle{width:36px;height:4px;border-radius:99px;background:var(--line);margin:0 auto 14px;}
+  .sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+  .sheet-head h2{margin:0;}
+  .sheet-close{background:transparent;border:none;color:var(--sub);font-size:18px;padding:4px 6px;line-height:1;}
+  .sheet-intro{font-size:13px;color:var(--sub);margin:0 0 14px;line-height:1.6;}
+  .help-item{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);}
+  .help-item:last-of-type{border-bottom:none;}
+  .help-emoji{font-size:20px;line-height:1.3;}
+  .help-item h3{margin:0 0 4px;font-size:14.5px;font-weight:600;}
+  .help-item p{margin:0;font-size:13px;color:var(--sub);line-height:1.6;}
+  .help-item .pi-tag{margin-top:6px;}
+  .sheet-foot{font-size:12px;color:var(--sub);margin:14px 0 0;line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>ตัวช่วยติดตามรอบเดือน</h1>
+    <p>ประเมินช่วงความเสี่ยงตั้งครรภ์แบบคร่าว ๆ จากวันที่ประจำเดือนมา</p>
+  </header>
+
+  <div class="hero" id="hero">
+    <div class="row"><span class="num" id="cycleDay">–</span><span class="label">วันที่ของรอบเดือนนี้</span></div>
+    <div class="phase" id="phaseNow">ยังไม่มีข้อมูล</div>
+    <span class="badge" id="riskNow">–</span>
+    <div class="note" id="heroNote">เพิ่มวันที่ประจำเดือนล่าสุดด้านล่าง เพื่อเริ่มคำนวณ</div>
+  </div>
+
+  <section class="card">
+    <h2>บันทึกวันที่ประจำเดือน</h2>
+    <div class="add-row">
+      <input type="date" id="dateInput">
+      <button id="addBtn">เพิ่ม</button>
+    </div>
+    <div class="dates-list" id="datesList"></div>
+    <div class="excel-row">
+      <button id="exportBtn">📤 ส่งออก Excel</button>
+      <button id="importBtn">📥 นำเข้า Excel</button>
+    </div>
+    <input type="file" id="importFile" accept=".xlsx,.xls" class="visually-hidden">
+  </section>
+
+  <section class="card">
+    <h2>ตั้งค่ารอบเดือน</h2>
+    <div class="settings-row">
+      <span>จำนวนวันที่มีประจำเดือน</span>
+      <input type="number" id="periodLen" min="1" max="15" value="5">
+    </div>
+    <div class="settings-row">
+      <span>ความยาวรอบล่าสุด</span>
+      <span class="val" id="avgCycleDisplay">–</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>ช่วงต่าง ๆ ในรอบปัจจุบัน</h2>
+    <div class="timeline" id="timeline"></div>
+  </section>
+
+  <section class="card">
+    <h2>ประวัติและสถิติย้อนหลัง</h2>
+    <div id="statsArea"></div>
+  </section>
+
+  <footer>
+    การคำนวณนี้เป็นการประมาณด้วยวิธีนับรอบเดือน (calendar method) เท่านั้น ความแม่นยำจะลดลงหากรอบเดือนมาไม่สม่ำเสมอ ไม่ควรใช้เป็นวิธีคุมกำเนิดหลักหากต้องการความมั่นใจสูง ควรปรึกษาแพทย์หรือใช้การคุมกำเนิดที่เชื่อถือได้ร่วมด้วย
+  </footer>
+</div>
+
+<button class="help-fab" id="helpBtn" aria-label="อธิบายแต่ละช่วง">?</button>
+<div class="sheet-backdrop" id="sheetBackdrop"></div>
+<div class="sheet" id="helpSheet" role="dialog" aria-modal="true">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <h2>แต่ละช่วงคืออะไร</h2>
+    <button class="sheet-close" id="sheetClose" aria-label="ปิด">✕</button>
+  </div>
+  <p class="sheet-intro">ในหนึ่งรอบเดือนแบ่งได้เป็น 4 ช่วง ความเสี่ยงตั้งครรภ์จะไม่เท่ากันในแต่ละช่วง</p>
+  <div class="help-item"><span class="help-emoji">🩸</span><div><h3>มีประจำเดือน</h3><p>ช่วงที่เยื่อบุมดลูกหลุดลอกออกมาเป็นประจำเดือน ความเสี่ยงตั้งครรภ์ต่ำ แต่ไม่ได้เป็นศูนย์ โดยเฉพาะถ้ารอบเดือนสั้น</p><span class="pi-tag safe">ความเสี่ยงต่ำ</span></div></div>
+  <div class="help-item"><span class="help-emoji">🌱</span><div><h3>ระยะฟอลลิคูลาร์</h3><p>ช่วงหลังหมดประจำเดือน ไข่ใบใหม่กำลังเจริญเติบโตในรังไข่ ร่างกายเตรียมพร้อมสำหรับการตกไข่ ความเสี่ยงยังอยู่ในระดับต่ำ</p><span class="pi-tag safe">ความเสี่ยงต่ำ</span></div></div>
+  <div class="help-item"><span class="help-emoji">🔴</span><div><h3>ช่วงไข่ตก / ช่วงเจริญพันธุ์สูง</h3><p>ไข่ตกออกจากรังไข่ และอสุจิสามารถอยู่รอดในร่างกายได้หลายวัน ช่วงนี้จึงเป็นช่วงที่มีโอกาสตั้งครรภ์สูงที่สุดของรอบเดือน</p><span class="pi-tag high">ความเสี่ยงสูง</span></div></div>
+  <div class="help-item"><span class="help-emoji">🍃</span><div><h3>ระยะลูเทียล</h3><p>ช่วงหลังไข่ตกจนถึงก่อนประจำเดือนรอบถัดไป ไข่ที่ไม่ได้รับการปฏิสนธิจะสลายไป ความเสี่ยงตั้งครรภ์กลับมาต่ำอีกครั้ง</p><span class="pi-tag safe">ความเสี่ยงต่ำ</span></div></div>
+  <p class="sheet-foot">ทั้งหมดนี้เป็นการประมาณด้วยวิธีนับรอบเดือนเท่านั้น ไม่ใช่การรับประกัน ความแม่นยำจะลดลงหากรอบเดือนมาไม่สม่ำเสมอ</p>
+</div>
+
+<script>
+(function(){
+  const STORE_KEY = 'cycleTracker.v3';
+  let state = { records: [], periodLen: 5 };
+
+  function load(){
+    try{
+      const raw = localStorage.getItem(STORE_KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        if(parsed && Array.isArray(parsed.records)){
+          state.records = parsed.records;
+          state.periodLen = parsed.periodLen || 5;
+          return;
+        }
+      }
+      // migrate from v2 (prevDate/lastDate) if present
+      const oldRaw = localStorage.getItem('cycleTracker.v2');
+      if(oldRaw){
+        const old = JSON.parse(oldRaw);
+        const migrated = [old.prevDate, old.lastDate].filter(Boolean);
+        state.records = [...new Set(migrated)];
+        state.periodLen = old.periodLen || 5;
+      }
+    }catch(e){ /* start fresh */ }
+  }
+  function save(){
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){}
+  }
+
+  function fmt(d){ return d.toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'2-digit'}); }
+  function parseISO(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+  function addDays(date,n){ const r=new Date(date); r.setDate(r.getDate()+n); return r; }
+  function dayDiff(a,b){ return Math.round((a-b)/86400000); }
+  function sortedRecords(){ return [...new Set(state.records)].sort(); }
+
+  function computeCycles(){
+    const s = sortedRecords();
+    const cycles = [];
+    for(let i=1;i<s.length;i++) cycles.push({ from:s[i-1], to:s[i], len: dayDiff(parseISO(s[i]), parseISO(s[i-1])) });
+    return cycles;
+  }
+  function computeStats(cycles){
+    const lens = cycles.map(c=>c.len).filter(l=>l>=15 && l<=60);
+    if(!lens.length) return null;
+    const avg = lens.reduce((a,b)=>a+b,0)/lens.length;
+    const min = Math.min(...lens), max = Math.max(...lens);
+    const sd = Math.sqrt(lens.reduce((a,b)=>a+(b-avg)**2,0)/lens.length);
+    return { avg: Math.round(avg*10)/10, min, max, sd: Math.round(sd*10)/10, count: lens.length, regular: lens.length>=3 ? sd<=4 : null };
+  }
+  function renderChart(cycles){
+    const lens = cycles.map(c=>c.len);
+    if(lens.length<2) return '';
+    const w=280,h=90,pad=14;
+    const min=Math.min(...lens), max=Math.max(...lens);
+    const range = Math.max(1, max-min);
+    const stepX = (w-pad*2)/(lens.length-1);
+    const pts = lens.map((l,i)=>{
+      const x = pad + i*stepX;
+      const y = h-pad - ((l-min)/range)*(h-pad*2);
+      return [x,y];
+    });
+    const path = pts.map((p,i)=> (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+    const dots = pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="var(--accent)"/>`).join('');
+    return `<div class="chart-wrap"><svg viewBox="0 0 ${w} ${h}"><path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2"/>${dots}</svg></div>`;
+  }
+
+  function renderDatesList(){
+    const listEl = document.getElementById('datesList');
+    const s = sortedRecords().reverse();
+    if(!s.length){ listEl.innerHTML = '<div class="empty">ยังไม่มีวันที่บันทึกไว้</div>'; return; }
+    listEl.innerHTML = s.map((iso,idx)=>{
+      const next = s[idx-1]; // one entry more recent (reversed order)
+      let lenLabel = idx===0 ? 'ล่าสุด' : '';
+      if(next){ lenLabel = dayDiff(parseISO(next), parseISO(iso)) + ' วัน'; }
+      return `<div class="date-item"><span><span class="d">${fmt(parseISO(iso))}</span><span class="len">${lenLabel}</span></span><button class="ghost" data-del="${iso}">ลบ</button></div>`;
+    }).join('');
+    listEl.querySelectorAll('[data-del]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        state.records = state.records.filter(d=>d!==btn.getAttribute('data-del'));
+        save(); render();
+      });
+    });
+  }
+
+  function renderStats(){
+    const area = document.getElementById('statsArea');
+    const cycles = computeCycles();
+    if(cycles.length < 1){ area.innerHTML = '<div class="empty">ต้องมีวันที่บันทึกไว้อย่างน้อย 2 รอบขึ้นไปถึงจะเริ่มดูประวัติได้</div>'; return; }
+    const stats = computeStats(cycles);
+    let html = '';
+    if(stats){
+      let badge = '';
+      if(stats.regular === true) badge = '<span class="regular-badge safe">รอบเดือนค่อนข้างสม่ำเสมอ</span>';
+      else if(stats.regular === false) badge = '<span class="regular-badge mid">รอบเดือนมาไม่ค่อยสม่ำเสมอ</span>';
+      else badge = '<span class="regular-badge mid">ข้อมูลยังน้อยเกินไปที่จะสรุปความสม่ำเสมอ (ต้องการอย่างน้อย 3 รอบ)</span>';
+      html += badge;
+      html += `<div class="stats-grid">
+        <div class="stat-card"><div class="v">${stats.avg}</div><div class="l">เฉลี่ย (วัน)</div></div>
+        <div class="stat-card"><div class="v">${stats.min}</div><div class="l">สั้นสุด (วัน)</div></div>
+        <div class="stat-card"><div class="v">${stats.max}</div><div class="l">ยาวสุด (วัน)</div></div>
+        <div class="stat-card"><div class="v">±${stats.sd}</div><div class="l">ความแกว่ง (วัน)</div></div>
+      </div>`;
+      html += renderChart(cycles);
+    }
+    html += '<div class="dates-list">' + cycles.slice().reverse().map(c=>
+      `<div class="date-item"><span class="d">${fmt(parseISO(c.from))} → ${fmt(parseISO(c.to))}</span><span class="len">${c.len} วัน</span></div>`
+    ).join('') + '</div>';
+    area.innerHTML = html;
+  }
+
+  function render(){
+    renderDatesList();
+    document.getElementById('periodLen').value = state.periodLen;
+
+    const heroNote = document.getElementById('heroNote');
+    const cycleDayEl = document.getElementById('cycleDay');
+    const phaseNowEl = document.getElementById('phaseNow');
+    const riskNowEl = document.getElementById('riskNow');
+    const timelineEl = document.getElementById('timeline');
+    const avgDisplayEl = document.getElementById('avgCycleDisplay');
+    const s = sortedRecords();
+
+    if(!s.length){
+      avgDisplayEl.textContent = '–';
+      cycleDayEl.textContent = '–';
+      phaseNowEl.textContent = 'ยังไม่มีข้อมูล';
+      riskNowEl.textContent = '–';
+      heroNote.textContent = 'เพิ่มวันที่ประจำเดือนล่าสุดด้านบน เพื่อเริ่มคำนวณ';
+      timelineEl.innerHTML = '';
+      renderStats();
+      return;
+    }
+
+    let cycleLen = 28;
+    if(s.length >= 2){
+      const diff = dayDiff(parseISO(s[s.length-1]), parseISO(s[s.length-2]));
+      if(diff >= 18 && diff <= 60) cycleLen = diff;
+    }
+    avgDisplayEl.textContent = s.length>=2 ? `${cycleLen} วัน (นับจาก 2 รอบล่าสุด)` : '28 วัน (ค่าเริ่มต้น ยังมีข้อมูลไม่พอ)';
+
+    const lastStart = parseISO(s[s.length-1]);
+    const today = new Date(); today.setHours(0,0,0,0);
+    let cycleDay = dayDiff(today, lastStart) + 1;
+    const periodLen = Math.max(1, Math.min(15, Number(state.periodLen)||5));
+    const ovulationDay = Math.max(periodLen+1, cycleLen - 14);
+    const fertileStart = Math.max(1, ovulationDay - 5);
+    const fertileEnd = ovulationDay + 1;
+    let overdue = cycleDay > cycleLen;
+
+    const phases = [
+      { title:'มีประจำเดือน', from:1, to:periodLen, risk:'safe', tag:'ความเสี่ยงต่ำ' },
+      { title:'ระยะฟอลลิคูลาร์ (หลังหมดประจำเดือน)', from:periodLen+1, to:fertileStart-1, risk:'safe', tag:'ความเสี่ยงต่ำ' },
+      { title:'ช่วงไข่ตก / ช่วงเจริญพันธุ์สูง', from:fertileStart, to:fertileEnd, risk:'high', tag:'ความเสี่ยงสูง' },
+      { title:'ระยะลูเทียล (หลังไข่ตก)', from:fertileEnd+1, to:cycleLen, risk:'safe', tag:'ความเสี่ยงต่ำ' },
+    ].filter(p=>p.to>=p.from);
+
+    let currentPhase = phases.find(p=>cycleDay>=p.from && cycleDay<=p.to) || phases[phases.length-1];
+    cycleDayEl.textContent = `${cycleDay}`;
+    phaseNowEl.textContent = currentPhase.title;
+    riskNowEl.textContent = currentPhase.tag;
+
+    if(overdue){
+      heroNote.textContent = `ประจำเดือนเลยกำหนดมา ${cycleDay - cycleLen} วัน — หากรอบเดือนมาไม่ตรง ให้เพิ่มวันที่ล่าสุดด้านบนเพื่ออัปเดตการคำนวณ`;
+    } else {
+      const daysToNextPeriod = cycleLen - cycleDay + 1;
+      if(cycleDay < fertileStart) heroNote.textContent = `อีกประมาณ ${fertileStart-cycleDay} วันจะเข้าสู่ช่วงไข่ตก (ความเสี่ยงสูง) · คาดว่าประจำเดือนรอบถัดไปจะมาในอีก ${daysToNextPeriod} วัน`;
+      else if(cycleDay <= fertileEnd) heroNote.textContent = `อยู่ในช่วงไข่ตก ความเสี่ยงตั้งครรภ์สูงสุดของรอบนี้ · คาดว่าประจำเดือนรอบถัดไปจะมาในอีก ${daysToNextPeriod} วัน`;
+      else heroNote.textContent = `พ้นช่วงไข่ตกแล้ว ความเสี่ยงลดลง · คาดว่าประจำเดือนรอบถัดไปจะมาในอีก ${daysToNextPeriod} วัน`;
+    }
+
+    timelineEl.innerHTML = phases.map(p=>{
+      const fromDate = addDays(lastStart, p.from-1), toDate = addDays(lastStart, p.to-1);
+      return `<div class="phase-item ${p.risk}"><div class="pi-body"><div class="pi-title">${p.title}</div><div class="pi-range">วันที่ ${p.from}-${p.to} ของรอบ · ${fmt(fromDate)} – ${fmt(toDate)}</div></div><span class="pi-tag ${p.risk}">${p.tag}</span></div>`;
+    }).join('');
+
+    renderStats();
+  }
+
+  document.getElementById('addBtn').addEventListener('click', ()=>{
+    const val = document.getElementById('dateInput').value;
+    if(!val) return;
+    if(!state.records.includes(val)) state.records.push(val);
+    document.getElementById('dateInput').value = '';
+    save(); render();
+  });
+  document.getElementById('periodLen').addEventListener('change', (e)=>{
+    state.periodLen = Number(e.target.value)||5;
+    save(); render();
+  });
+
+  document.getElementById('exportBtn').addEventListener('click', ()=>{
+    try{
+      const rows = [['วันที่ประจำเดือน'], ...sortedRecords().map(d=>[d])];
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'ประจำเดือน');
+      XLSX.writeFile(wb, 'cycle-tracker-export.xlsx');
+    }catch(e){ alert('ส่งออกไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง'); }
+  });
+
+  document.getElementById('importBtn').addEventListener('click', ()=>{
+    document.getElementById('importFile').click();
+  });
+  document.getElementById('importFile').addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt){
+      try{
+        const wb = XLSX.read(new Uint8Array(evt.target.result), {type:'array', cellDates:true});
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, {header:1, raw:false, dateNF:'yyyy-mm-dd'});
+        const found = [];
+        rows.forEach(row=>{
+          const val = row[0];
+          if(!val) return;
+          if(/^\d{4}-\d{2}-\d{2}$/.test(val)){ found.push(val); return; }
+          const d = new Date(val);
+          if(!isNaN(d)) found.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
+        });
+        if(!found.length){ alert('ไม่พบวันที่ที่อ่านได้ในไฟล์นี้'); return; }
+        const merge = confirm(`พบ ${found.length} วันที่ในไฟล์\n\nกด "ตกลง" เพื่อรวมกับข้อมูลเดิม\nกด "ยกเลิก" เพื่อแทนที่ข้อมูลเดิมทั้งหมด`);
+        state.records = merge ? [...new Set([...state.records, ...found])] : [...new Set(found)];
+        save(); render();
+      }catch(err){ alert('อ่านไฟล์ไม่สำเร็จ ตรวจสอบว่าเป็นไฟล์ .xlsx ที่ถูกต้อง'); }
+      e.target.value = '';
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  load();
+  render();
+
+  const sheet = document.getElementById('helpSheet');
+  const backdrop = document.getElementById('sheetBackdrop');
+  function openSheet(){ sheet.classList.add('open'); backdrop.classList.add('open'); }
+  function closeSheet(){ sheet.classList.remove('open'); backdrop.classList.remove('open'); }
+  document.getElementById('helpBtn').addEventListener('click', openSheet);
+  document.getElementById('sheetClose').addEventListener('click', closeSheet);
+  backdrop.addEventListener('click', closeSheet);
+})();
+</script>
+</body>
+</html>
